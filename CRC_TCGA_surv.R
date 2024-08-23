@@ -107,4 +107,41 @@ surv_cut <- surv_cutpoint(
 )
 summary(surv_cut)
 
+j <- 1
+out_path <- "/data/projects/2022/CRCA/results/manuscript/figures/"
+
+# Fit the survival model - you need to do it manually -> per group
+for (i in c("B", "desert", "M", "T")){
+  # Dynamically access and Convert the numeric GSVA scores to factorial (high/low) - according to the calculated cutpoints
+  test.final_df[[i]] <- factor(ifelse(test.final_df[[i]] > summary(surv_cut)[j, 1], "high", "low"))
+  
+  # fit the model
+  fit <- survfit(Surv(time = OS.time.years ,event =  OS) ~ test.final_df[[i]], data = test.final_df)
+  # fit <- survfit(Surv(time = OS.time.years ,event =  OS) ~ i, data = test.final_df)
+  
+  # Save the plots
+  survp <- ggsurvplot(fit,
+                      pval = TRUE,
+                      conf.int = FALSE,
+                      risk.table = FALSE, # Add risk table
+                      risk.table.col = "strata", # Change risk table color by groups
+                      linetype = "strata", # Change line type by groups
+                      surv.median.line = "hv", # Specify median survival
+                      ggtheme = theme_bw(), # Change ggplot2 theme
+                      # palette = c("red", "blue"), # set the color palette - default if left commented 
+                      xlab = "OS in years",   # customize X axis label.
+                      legend.title = paste0("Immune group: ",i),
+                      legend.labs = c("High", "Low"),
+                      ylab = "Overall Survival (OS)")
+  
+  print(survp)
+  for (suffix in c("png","svg")) {
+    ggsave(filename = paste0(out_path,"surv_",i, "_", "top", n_rows, "_", "lFC", lFC_trheshold, ".", suffix),
+           survp,
+           device = suffix,
+           dpi=400,
+    )
+  }
+  j <- j + 1
+}
 
