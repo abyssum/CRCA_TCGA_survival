@@ -78,3 +78,33 @@ goi <- list(c(b.de.genes.top$symbol),
             c(m.de.genes.top$symbol),
             c(t.de.genes.top$symbol))
 names(goi) <- c("B", "desert", "M", "T")
+
+# Run the GSVA and transpose the results for easier processing
+gsva.res <- gsva(expression.clean, goi, verbose = FALSE)
+test_df <- as.data.frame(t(gsva.res), stringsAsFactors = FALSE)
+test_df$case_ID <- rownames(test_df)
+
+# Create a mapping dataframe with unique rows, only for the common case_IDs
+df.map <- unique(data.frame(
+  bcr_patient_barcode = mappings$cases.0.submitter_id,
+  case_ID = mappings$cases.0.samples.0.portions.0.analytes.0.aliquots.0.submitter_id,
+  stringsAsFactors = FALSE
+))
+df.map <- df.map[df.map$case_ID %in% test_df$case_ID, ]
+
+# Merge the dataframes: GSVA results, mappings, and clinical data
+test.final_df <- merge(clinical, merge(test_df, df.map, by = "case_ID"), by = "bcr_patient_barcode")
+
+# Convert OS time to years
+test.final_df$OS.time.years <- test.final_df$OS.time / 365
+
+# Define the cutpoint - to be used for the ranking: high/low
+surv_cut <- surv_cutpoint(
+  test.final_df,
+  time = "OS.time.years",
+  event = "OS",
+  variables = c("B", "desert", "M", "T")
+)
+summary(surv_cut)
+
+
